@@ -15,6 +15,7 @@ export default function SearchInput() {
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<Entry[] | null>(null);
   const [images, setImages] = useState<ImageResult[]>([]);
+  const [hasSearched, setHasSearched] = useState(false);
 
   async function handleSubmit(event: FormEvent) {
     event.preventDefault();
@@ -25,6 +26,7 @@ export default function SearchInput() {
     setLoading(true);
     setResult(null);
     setImages([]);
+    setHasSearched(true);
 
     try {
       const data = await getDefinition(term);
@@ -39,11 +41,10 @@ export default function SearchInput() {
   }
 
   const noResults =
+    hasSearched &&
     !loading &&
-    lastTerm &&
-    result !== null &&
-    result.length === 0 &&
-    images.length === 0;
+    (result?.length ?? 0) === 0 &&
+    (images?.length ?? 0) === 0;
 
   return (
     <div className="mx-auto w-full max-w-xl px-4">
@@ -154,12 +155,23 @@ function ImagesGrid({ images }: { images: ImageResult[] }) {
   return (
     <div className="mt-6 grid grid-cols-2 sm:grid-cols-3 gap-3">
       {images.map((img, i) => {
-        const src = img.src?.small || img.src?.large;
+        const src =
+          typeof img.src === "string"
+            ? img.src
+            : img.src?.small ||
+              img.src?.medium ||
+              img.src?.large ||
+              img.src?.original ||
+              img.url ||
+              "";
+
         if (!src) return null;
+
+        const key = String(img.id ?? src ?? i);
 
         return (
           <div
-            key={img.id ?? i}
+            key={key}
             className="relative w-full h-32 overflow-hidden rounded-xl border bg-white"
           >
             <Image

@@ -20,9 +20,17 @@ export type Entry = {
 };
 
 export type ImageResult = {
-  id: number;
-  src: { small: string; large: string };
-  alt: string;
+  id?: number;
+  alt?: string;
+  url?: string;
+  src?:
+    | string
+    | {
+        small?: string;
+        medium?: string;
+        large?: string;
+        original?: string;
+      };
 };
 
 export type DefinitionResponse = {

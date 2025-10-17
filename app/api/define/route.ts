@@ -51,6 +51,18 @@ export async function GET(req: Request) {
     ? imgsRaw
     : [];
 
+  if (dict.length === 0 || !dict[0]?.meanings?.length) {
+    return NextResponse.json(
+      {
+        error: `Results not found for "${word}"`,
+        dictionary: [],
+        images: [],
+        query: word,
+      },
+      { status: 404 }
+    );
+  }
+
   return NextResponse.json(
     {
       dictionary: dict,
