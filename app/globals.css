@@ -15,11 +15,7 @@
 
 @layer components {
   .icon-position {
-    @apply absolute right-[1rem] top-[0.4rem] size-8 sm:size-9;
-  }
-
-  .input-position {
-    @apply sm:h-12 sm:w-lg h-10 w-xs;
+    @apply absolute right-[1rem] top-[0.6rem] size-8 sm:size-9 sm:top-[0.4rem];
   }
 }
 
