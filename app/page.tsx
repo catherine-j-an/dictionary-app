@@ -10,8 +10,17 @@ export default function Home() {
         English Dictionary
       </h1>
       <SearchInput />
-      <div className="text-white p-8">
-        This code is developed by Catherine An and open-sourced on{" "}
+      <div className="text-white p-8 text-center">
+        Built by <span className="font-semibold">Catherine An</span> using{" "}
+        <Link
+          href="https://nextjs.org/"
+          target="_blank"
+          rel="noopener noreferrer"
+          className="underline hover:text-secondary transition"
+        >
+          Next.js v15
+        </Link>{" "}
+        and open-sourced on{" "}
         <Link
           href="https://github.com/catherine-j-an/dictionary-app"
           target="_blank"
