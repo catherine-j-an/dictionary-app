@@ -1,4 +1,11 @@
-type Meaning = {
+type Definition = {
+  definition: string;
+  example?: string | null;
+  synonyms?: string[] | null;
+  antonyms?: string[] | null;
+};
+
+export type Meaning = {
   partOfSpeech: string;
   definition: string;
   example?: string | null;

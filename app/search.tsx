@@ -1,7 +1,7 @@
 "use client";
 import Image from "next/image";
 import { useState, FormEvent } from "react";
-import { getDefinition, type Entry } from "./getDefinition";
+import { getDefinition, type Entry, type Meaning } from "./getDefinition";
 
 export default function SearchInput() {
   const [query, setQuery] = useState("");
@@ -24,13 +24,15 @@ export default function SearchInput() {
 
     function normalizeToEntries(data: unknown): Entry[] {
       const arr = Array.isArray(data) ? data : data ? [data] : [];
-      return arr.filter(
-        (e: any) =>
-          e &&
-          typeof e.word === "string" &&
-          Array.isArray(e.meanings) &&
-          e.meanings.length > 0
-      ) as Entry[];
+      return arr.filter((e) => {
+        if (typeof e !== "object" || e === null) return false;
+        const obj = e as { word?: unknown; meanings?: unknown };
+        return (
+          typeof obj.word === "string" &&
+          Array.isArray(obj.meanings) &&
+          obj.meanings.length > 0
+        );
+      }) as Entry[];
     }
 
     try {
@@ -106,10 +108,10 @@ function Results({ entries }: { entries: Entry[] }) {
           </div>
 
           <ul>
-            {entry.meanings?.map((m: any, i: number) => {
-              const defs = Array.isArray(m.definitions) ? m.definitions : [m];
+            {entry.meanings?.map((m: Meaning, i: number) => {
+              const defs = Array.isArray(m.definition) ? m.definition : [m];
 
-              return defs.map((d: any, j: number) => (
+              return defs.map((d: Meaning, j: number) => (
                 <li key={`${i}-${j}`} className="pt-3">
                   <p className="text-md">
                     <span className="italic font-bold text-secondary">

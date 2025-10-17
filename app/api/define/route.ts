@@ -37,13 +37,20 @@ export async function GET(req: Request) {
     const data = await res.json().catch(() => ({}));
 
     return NextResponse.json(data, { status: res.status });
-  } catch (e: any) {
+  } catch (e: unknown) {
     clearTimeout(timeout);
 
-    console.error("[/api/define] upstream error:", e?.name, e?.message);
+    console.error(
+      "[/api/define] upstream error:",
+      (e as Error)?.name,
+      (e as Error)?.message
+    );
 
     return NextResponse.json(
-      { error: "Upstream request failed", detail: e?.message || String(e) },
+      {
+        error: "Upstream request failed",
+        detail: (e as Error)?.message || String(e),
+      },
       { status: 502 }
     );
   }
