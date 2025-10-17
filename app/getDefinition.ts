@@ -1,4 +1,4 @@
-type Definition = {
+export type Definition = {
   definition: string;
   example?: string | null;
   synonyms?: string[] | null;
@@ -7,7 +7,7 @@ type Definition = {
 
 export type Meaning = {
   partOfSpeech: string;
-  definition: string;
+  definition: string | Definition[];
   example?: string | null;
   synonyms?: string[] | null;
   antonyms?: string[] | null;
@@ -19,26 +19,60 @@ export type Entry = {
   meanings: Meaning[];
 };
 
-export async function getDefinition(word: string): Promise<Entry[]> {
+export type ImageResult = {
+  id: number;
+  src: { small: string; large: string };
+  alt: string;
+};
+
+export type DefinitionResponse = {
+  dictionary: Entry[];
+  images: ImageResult[];
+  query: string;
+};
+
+export async function getDefinition(word: string): Promise<DefinitionResponse> {
   const query = word.trim();
-  if (!query) return [];
-
-  const res = await fetch(`/api/define?word=${encodeURIComponent(query)}`, {
-    cache: "no-store",
-  });
-
-  if (!res.ok) {
-    if (res.status === 404) return [];
-
-    let msg = `Request failed with status ${res.status}`;
-    try {
-      const j = await res.json();
-      if (j?.error) msg = j.error + (j?.detail ? `: ${j.detail}` : "");
-      else if (j?.title) msg = j.title;
-      else if (j?.message) msg = j.message;
-    } catch {}
-    throw new Error(msg);
+  if (!query) {
+    return { dictionary: [], images: [], query: "" };
   }
 
-  return res.json();
+  try {
+    const res = await fetch(`/api/define?word=${encodeURIComponent(query)}`, {
+      cache: "no-store",
+    });
+
+    if (!res.ok) {
+      return { dictionary: [], images: [], query };
+    }
+
+    const data: unknown = await res.json();
+
+    if (
+      typeof data === "object" &&
+      data !== null &&
+      "dictionary" in data &&
+      "images" in data
+    ) {
+      const {
+        dictionary,
+        images,
+        query: returnedQuery,
+      } = data as {
+        dictionary?: Entry[];
+        images?: ImageResult[];
+        query?: string;
+      };
+
+      return {
+        dictionary: Array.isArray(dictionary) ? dictionary : [],
+        images: Array.isArray(images) ? images : [],
+        query: typeof returnedQuery === "string" ? returnedQuery : query,
+      };
+    }
+
+    return { dictionary: [], images: [], query };
+  } catch {
+    return { dictionary: [], images: [], query };
+  }
 }

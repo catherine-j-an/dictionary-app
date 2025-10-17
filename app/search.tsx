@@ -1,56 +1,49 @@
 "use client";
+
 import Image from "next/image";
 import { useState, FormEvent } from "react";
-import { getDefinition, type Entry, type Meaning } from "./getDefinition";
+import {
+  getDefinition,
+  type Entry,
+  type Meaning,
+  type ImageResult,
+} from "./getDefinition";
 
 export default function SearchInput() {
   const [query, setQuery] = useState("");
   const [lastTerm, setLastTerm] = useState("");
-  const [hasSearched, setHasSearched] = useState(false);
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
   const [result, setResult] = useState<Entry[] | null>(null);
+  const [images, setImages] = useState<ImageResult[]>([]);
 
   async function handleSubmit(event: FormEvent) {
     event.preventDefault();
     const term = query.trim();
-
     if (!term) return;
-    setHasSearched(true);
+
     setLastTerm(term);
     setLoading(true);
-    setError(null);
     setResult(null);
-
-    function normalizeToEntries(data: unknown): Entry[] {
-      const arr = Array.isArray(data) ? data : data ? [data] : [];
-      return arr.filter((e) => {
-        if (typeof e !== "object" || e === null) return false;
-        const obj = e as { word?: unknown; meanings?: unknown };
-        return (
-          typeof obj.word === "string" &&
-          Array.isArray(obj.meanings) &&
-          obj.meanings.length > 0
-        );
-      }) as Entry[];
-    }
+    setImages([]);
 
     try {
       const data = await getDefinition(term);
-      const normalized = normalizeToEntries(data);
-
-      if (normalized.length === 0) {
-        setResult([]);
-      } else {
-        setResult(normalized);
-      }
-    } catch (err) {
-      setError(null);
+      setResult(data.dictionary);
+      setImages(data.images);
+    } catch {
       setResult([]);
+      setImages([]);
     } finally {
       setLoading(false);
     }
   }
+
+  const noResults =
+    !loading &&
+    lastTerm &&
+    result !== null &&
+    result.length === 0 &&
+    images.length === 0;
 
   return (
     <div className="mx-auto w-full max-w-xl px-4">
@@ -58,14 +51,19 @@ export default function SearchInput() {
         <input
           type="search"
           value={query}
-          onChange={(event) => setQuery(event.target.value)}
+          onChange={(e) => setQuery(e.target.value)}
           autoFocus
           placeholder="Type a word..."
           aria-label="Word search"
+          aria-busy={loading}
           className="w-full h-12 rounded-2xl border bg-white px-4"
         />
 
-        <button type="submit" aria-label="Search">
+        <button
+          type="submit"
+          aria-label="Search"
+          disabled={loading || !query.trim()}
+        >
           <Image
             src="/search_icon.svg"
             alt="Search"
@@ -77,14 +75,15 @@ export default function SearchInput() {
       </form>
 
       {loading && <p className="text-sm text-white mt-2">Searching...</p>}
-      {error && <p className="text-sm text-red-600 mt-2">⚠️ {error}</p>}
 
-      {!loading && hasSearched && (!result || result.length === 0) && (
+      {noResults && (
         <p className="text-sm text-white mt-2">
           Results not found for “{lastTerm}”.
         </p>
       )}
+
       {result && result.length > 0 && <Results entries={result} />}
+      {images.length > 0 && <ImagesGrid images={images} />}
     </div>
   );
 }
@@ -99,7 +98,6 @@ function Results({ entries }: { entries: Entry[] }) {
         >
           <div className="text-xl text-secondary font-bold">
             {entry.word}
-
             {entry.phonetic ? (
               <div className="text-md italic text-secondary font-light">
                 /{entry.phonetic}/
@@ -109,36 +107,36 @@ function Results({ entries }: { entries: Entry[] }) {
 
           <ul>
             {entry.meanings?.map((m: Meaning, i: number) => {
-              const defs = Array.isArray(m.definition) ? m.definition : [m];
+              const defs = Array.isArray(m.definition)
+                ? m.definition
+                : [{ definition: m.definition }];
 
-              return defs.map((d: Meaning, j: number) => (
+              return defs.map((d, j) => (
                 <li key={`${i}-${j}`} className="pt-3">
                   <p className="text-md">
                     <span className="italic font-bold text-secondary">
                       {m.partOfSpeech}
                     </span>{" "}
-                    : {d.definition ?? m.definition}
+                    : {d.definition}
                   </p>
 
                   {d.example && (
                     <p className="text-sm">
-                      {" "}
-                      <span className=" text-secondary">Example</span> : “
+                      <span className="text-secondary">Example</span> : “
                       {d.example}”
                     </p>
                   )}
 
-                  {d.synonyms?.length && (
+                  {!!d.synonyms?.length && (
                     <p className="text-sm">
-                      {" "}
-                      <span className=" text-secondary">Synonyms</span> ~{" "}
+                      <span className="text-secondary">Synonyms</span> ~{" "}
                       {d.synonyms.join(", ")}
                     </p>
                   )}
 
-                  {d.antonyms?.length && (
+                  {!!d.antonyms?.length && (
                     <p className="text-sm">
-                      <span className=" text-secondary">Antonyms</span> {"<> "}
+                      <span className="text-secondary">Antonyms</span> {"<> "}
                       {d.antonyms.join(", ")}
                     </p>
                   )}
@@ -148,6 +146,32 @@ function Results({ entries }: { entries: Entry[] }) {
           </ul>
         </div>
       ))}
+    </div>
+  );
+}
+
+function ImagesGrid({ images }: { images: ImageResult[] }) {
+  return (
+    <div className="mt-6 grid grid-cols-2 sm:grid-cols-3 gap-3">
+      {images.map((img, i) => {
+        const src = img.src?.small || img.src?.large;
+        if (!src) return null;
+
+        return (
+          <div
+            key={img.id ?? i}
+            className="relative w-full h-32 overflow-hidden rounded-xl border bg-white"
+          >
+            <Image
+              src={src}
+              alt={img.alt || "result"}
+              fill
+              sizes="(max-width: 768px) 50vw, 33vw"
+              className="object-cover"
+            />
+          </div>
+        );
+      })}
     </div>
   );
 }

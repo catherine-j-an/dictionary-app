@@ -3,11 +3,11 @@ import { NextResponse } from "next/server";
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-export async function GET(req: Request) {
-  const { searchParams } = new URL(req.url);
-  const word = (searchParams.get("word") || "").trim();
-  const key = "bf84c5dt8ba6f1571of07a1c8e407cf3";
+const API_KEY = "bf84c5dt8ba6f1571of07a1c8e407cf3";
+const TIMEOUT_MS = 8000;
 
+export async function GET(req: Request) {
+  const word = new URL(req.url).searchParams.get("word")?.trim();
   if (!word) {
     return NextResponse.json(
       { error: "Missing 'word' param" },
@@ -15,43 +15,48 @@ export async function GET(req: Request) {
     );
   }
 
-  const upstream = `https://api.shecodes.io/dictionary/v1/define?word=${encodeURIComponent(
-    word
-  )}&key=${key}`;
+  const dictionary = new URL("https://api.shecodes.io/dictionary/v1/define");
+  dictionary.search = new URLSearchParams({ word, key: API_KEY }).toString();
 
-  const ac = new AbortController();
-  const timeout = setTimeout(() => ac.abort(), 8000);
+  const images = new URL("https://api.shecodes.io/images/v1/search");
+  images.search = new URLSearchParams({ query: word, key: API_KEY }).toString();
 
-  try {
-    const res = await fetch(upstream, {
-      cache: "no-store",
-      signal: ac.signal,
-      headers: {
-        accept: "application/json",
-        "user-agent": "nextjs-proxy/1.0 (+https://localhost)",
-      },
-    });
+  const signal =
+    "timeout" in AbortSignal ? AbortSignal.timeout(TIMEOUT_MS) : undefined;
 
-    clearTimeout(timeout);
+  const fetchJSON = async (url: URL) => {
+    try {
+      const res = await fetch(url, {
+        cache: "no-store",
+        signal,
+        headers: { accept: "application/json" },
+      });
+      if (!res.ok) return null;
+      return await res.json().catch(() => null);
+    } catch {
+      return null;
+    }
+  };
 
-    const data = await res.json().catch(() => ({}));
+  const [dictRaw, imgsRaw] = await Promise.all([
+    fetchJSON(dictionary),
+    fetchJSON(images),
+  ]);
 
-    return NextResponse.json(data, { status: res.status });
-  } catch (e: unknown) {
-    clearTimeout(timeout);
+  const dict = Array.isArray(dictRaw) ? dictRaw : dictRaw ? [dictRaw] : [];
 
-    console.error(
-      "[/api/define] upstream error:",
-      (e as Error)?.name,
-      (e as Error)?.message
-    );
+  const imgs = Array.isArray(imgsRaw?.photos)
+    ? imgsRaw.photos
+    : Array.isArray(imgsRaw)
+    ? imgsRaw
+    : [];
 
-    return NextResponse.json(
-      {
-        error: "Upstream request failed",
-        detail: (e as Error)?.message || String(e),
-      },
-      { status: 502 }
-    );
-  }
+  return NextResponse.json(
+    {
+      dictionary: dict,
+      images: imgs,
+      query: word,
+    },
+    { status: 200 }
+  );
 }
